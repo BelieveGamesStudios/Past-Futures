@@ -5,12 +5,12 @@ namespace Believe.Games.Studios
 {
     public class WeaponBase : MonoBehaviour
     {
-        public PlayerMovement movement;
+        [HideInInspector] public PlayerMovement movement;
         public InputSystem_Actions inputHandler;
         [Header("Animation")]
-        public Animator gunController;
+        [HideInInspector] public Animator gunController;
         Transform shootPoint;
-        
+
         [Header("Weapon Stats")]
         public float fireRate = 0.3f;
         [SerializeField] float gunRange = 80;
@@ -19,7 +19,7 @@ namespace Believe.Games.Studios
         [SerializeField] int minDamage = 20;
         [SerializeField] int maxDamage = 50;
         public int currentAmmo;
-        public int MagCount=60;
+        public int MagCount = 60;
         int damage;
         public float nextTimeToFire;
 
@@ -31,10 +31,10 @@ namespace Believe.Games.Studios
         [SerializeField] AudioSource emptySource;
         [SerializeField] ParticleSystem muzzleFlash;
         [SerializeField] ParticleSystem caseShell;
-        [Header("Particle Effect Setup")]
-        [SerializeField] SurfaceTypes[] surfaceTypes;
-        private  void OnEnable()
+        ParticleManager particleManager;
+        private void OnEnable()
         {
+            particleManager = FindFirstObjectByType<ParticleManager>();
             inputHandler = new InputSystem_Actions();
             inputHandler.Player.Enable();
             inputHandler.Player.Reload.performed += ctx => Reload();
@@ -48,8 +48,8 @@ namespace Believe.Games.Studios
         private void Update()
         {
             PlayAnimation();
-            
-            if(inputHandler.Player.Attack.IsPressed() && !isReloading)
+
+            if (inputHandler.Player.Attack.IsPressed() && !isReloading)
             {
                 Shoot();
                 return;
@@ -57,7 +57,7 @@ namespace Believe.Games.Studios
         }
         public virtual void PlayAnimation()
         {
-            
+
         }
         public virtual void Shoot()
         {
@@ -78,24 +78,25 @@ namespace Believe.Games.Studios
             {
                 ITakeDamage zombieHealth = hit.transform.GetComponent<ITakeDamage>();
                 Rigidbody hitRb = hit.transform.GetComponent<Rigidbody>();
-                if(zombieHealth!=null)
+                if (zombieHealth != null)
                 {
                     zombieHealth.TakeDamage(damage);
+                    Instantiate(particleManager.zombieBlood, hit.point, Quaternion.Euler(hit.normal));
                 }
-                if(hitRb!=null)
+                if (hitRb != null)
                 {
                     hitRb.AddRelativeForce(-hit.normal * gunForce, ForceMode.Impulse);
                 }
                 string surfaceTag = hit.transform.tag;
-                for(int i=0;i<surfaceTypes.Length;i++)
+                for (int i = 0; i < particleManager.surfaceTypes.Length; i++)
                 {
-                    if (surfaceTag == surfaceTypes[i].SurfaceType)
+                    if (surfaceTag == particleManager.surfaceTypes[i].SurfaceType)
                     {
-                        Instantiate(surfaceTypes[i].surfaceEffect, hit.point, Quaternion.Euler(hit.normal));
+                        Instantiate(particleManager.surfaceTypes[i].surfaceEffect, hit.point, Quaternion.Euler(hit.normal));
                     }
                 }
             }
-            
+
         }
         public virtual void OnCaseOut()
         {
@@ -104,11 +105,11 @@ namespace Believe.Games.Studios
         }
         public void Reload()
         {
-            if (currentAmmo >= maxAmmo || MagCount<=0) return;
+            if (currentAmmo >= maxAmmo || MagCount <= 0) return;
             canShoot = false;
             isReloading = true;
             gunController.SetTrigger("Reload");
-            
+
         }
         public void FillAmmo()
         {
@@ -145,11 +146,5 @@ namespace Believe.Games.Studios
             isReloading = false;
         }
 
-    }
-    [System.Serializable]
-    public class SurfaceTypes
-    {
-        public string SurfaceType;
-        public GameObject surfaceEffect;
     }
 }
