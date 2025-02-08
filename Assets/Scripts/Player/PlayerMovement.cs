@@ -93,7 +93,7 @@ public class PlayerMovement : MonoBehaviour,ITakeDamage
     {
 
         _controller = GetComponent<CharacterController>();
-
+        Cursor.lockState = CursorLockMode.Locked;
         // reset our timeouts on start
         _jumpTimeoutDelta = JumpTimeout;
         _fallTimeoutDelta = FallTimeout;

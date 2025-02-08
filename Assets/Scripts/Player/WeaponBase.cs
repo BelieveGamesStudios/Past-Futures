@@ -12,7 +12,7 @@ namespace Believe.Games.Studios
         Transform shootPoint;
         
         [Header("Weapon Stats")]
-        [SerializeField] float fireRate = 0.3f;
+        public float fireRate = 0.3f;
         [SerializeField] float gunRange = 80;
         [SerializeField] float gunForce = 30;
         [SerializeField] int maxAmmo = 5;
@@ -21,15 +21,16 @@ namespace Believe.Games.Studios
         public int currentAmmo;
         public int MagCount=60;
         int damage;
-
+        public float nextTimeToFire;
 
         public bool canShoot = false;                  //Use Animation to make this true
-        public bool canReload = true;
+        public bool isReloading = false;                  //Use Animation to make this true
 
         [Header("SFX")]
         [SerializeField] AudioSource gunSource;
+        [SerializeField] AudioSource emptySource;
         [SerializeField] ParticleSystem muzzleFlash;
-
+        [SerializeField] ParticleSystem caseShell;
         [Header("Particle Effect Setup")]
         [SerializeField] SurfaceTypes[] surfaceTypes;
         private  void OnEnable()
@@ -37,6 +38,7 @@ namespace Believe.Games.Studios
             inputHandler = new InputSystem_Actions();
             inputHandler.Player.Enable();
             inputHandler.Player.Reload.performed += ctx => Reload();
+            inputHandler.Player.Attack.canceled += ctx => EnableShooting();
             currentAmmo = maxAmmo;
             shootPoint = Camera.main.transform;
             movement = FindFirstObjectByType<PlayerMovement>();
@@ -45,17 +47,13 @@ namespace Believe.Games.Studios
         }
         private void Update()
         {
-            if(currentAmmo<=0)
-            {
-                canShoot = false;
-                return;
-            }
-            if(inputHandler.Player.Attack.IsPressed() && canShoot)
+            PlayAnimation();
+            
+            if(inputHandler.Player.Attack.IsPressed() && !isReloading)
             {
                 Shoot();
                 return;
             }
-            PlayAnimation();
         }
         public virtual void PlayAnimation()
         {
@@ -63,7 +61,12 @@ namespace Believe.Games.Studios
         }
         public virtual void Shoot()
         {
-            if (currentAmmo <= 0) return;
+            if (isReloading) return;
+            if (currentAmmo <= 0)
+            {
+                emptySource.Play();
+                return;
+            }
             currentAmmo--;
             FindFirstObjectByType<RecoilSystem1>().ApplyRecoil();
             damage = Random.Range(minDamage, maxDamage);
@@ -94,23 +97,35 @@ namespace Believe.Games.Studios
             }
             
         }
+        public virtual void OnCaseOut()
+        {
+            if (caseShell == null) return;
+            caseShell.Play();
+        }
         public void Reload()
         {
+            if (currentAmmo >= maxAmmo || MagCount<=0) return;
+            canShoot = false;
+            isReloading = true;
             gunController.SetTrigger("Reload");
-            if(MagCount>0 && currentAmmo<maxAmmo)
+            
+        }
+        public void FillAmmo()
+        {
+            if (MagCount > 0 && currentAmmo < maxAmmo)
             {
                 int ammoToFill = maxAmmo - currentAmmo;
-                if(currentAmmo<=0 && MagCount>maxAmmo)
+                if (currentAmmo <= 0 && MagCount >= maxAmmo)
                 {
                     currentAmmo = maxAmmo;
                     MagCount -= maxAmmo;
                 }
-                else if (currentAmmo>0 && MagCount>ammoToFill)
+                else if (currentAmmo > 0 && MagCount > ammoToFill)
                 {
                     currentAmmo = maxAmmo;
                     MagCount -= ammoToFill;
                 }
-                else if(currentAmmo>0 && MagCount<ammoToFill)
+                else if (currentAmmo > 0 && MagCount < ammoToFill)
                 {
                     currentAmmo += MagCount;
                     MagCount = 0;
@@ -124,8 +139,10 @@ namespace Believe.Games.Studios
         }
         public void EnableShooting()
         {
+            if (currentAmmo <= 0) return;
             canShoot = true;
             gunController.ResetTrigger("Shoot");
+            isReloading = false;
         }
 
     }
